@@ -214,3 +214,16 @@ input:focus {
 [data-theme="dark"] input:focus {
   box-shadow: 0 0 0 3px rgba(117, 81, 255, 0.2);
 }
+/* Add inside index.css */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .compare-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+

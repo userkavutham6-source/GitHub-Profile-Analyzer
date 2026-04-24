@@ -11,28 +11,48 @@ import { fetchUserProfile, fetchUserRepos, analyzeRepos } from './services/githu
 function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [profileData, setProfileData] = useState(null);
-  const [metricsData, setMetricsData] = useState(null);
+  
+  // States are now arrays to support Compare Mode
+  const [profiles, setProfiles] = useState([]);
+  const [metrics, setMetrics] = useState([]);
 
-  const handleSearch = async (username) => {
+  const handleSearch = async (usernames) => {
     setIsLoading(true);
     setError(null);
-    setProfileData(null);
-    setMetricsData(null);
+    setProfiles([]);
+    setMetrics([]);
 
     try {
-      const profile = await fetchUserProfile(username);
-      const repos = await fetchUserRepos(username);
-      const metrics = analyzeRepos(repos);
+      const profilePromises = usernames.map(fetchUserProfile);
+      const repoPromises = usernames.map(fetchUserRepos);
 
-      setProfileData(profile);
-      setMetricsData(metrics);
+      const fetchedProfiles = await Promise.all(profilePromises);
+      const fetchedReposArray = await Promise.all(repoPromises);
+      
+      const analyzedMetrics = fetchedReposArray.map(analyzeRepos);
+
+      setProfiles(fetchedProfiles);
+      setMetrics(analyzedMetrics);
     } catch (err) {
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const renderProfileColumn = (profileData, metricsData) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div className="grid-2">
+        <ProfileCard profile={profileData} />
+        <MetricsGrid metrics={metricsData} />
+      </div>
+      <div className="grid-2">
+        <LanguageChart data={metricsData.chartData} />
+        <ActivityChart active={metricsData.activeRepos} inactive={metricsData.inactiveRepos} />
+      </div>
+      <TopRepos repos={metricsData.topRepos} />
+    </div>
+  );
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -60,28 +80,18 @@ function App() {
           <div className="spinner"></div>
         )}
 
-        {profileData && metricsData && !isLoading && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', paddingBottom: '4rem' }}>
-            
-            {/* Top row: Profile and Metrics */}
-            <div className="grid-2">
-              <div>
-                <ProfileCard profile={profileData} />
+        {!isLoading && profiles.length > 0 && metrics.length > 0 && (
+          <div className={profiles.length === 2 ? "compare-grid" : ""} style={{ paddingBottom: '4rem' }}>
+            {profiles.map((profile, index) => (
+              <div key={profile.login} className="animate-fade-in">
+                {profiles.length === 2 && (
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--accent-color)', textAlign: 'center' }}>
+                    Profile {index + 1}
+                  </h3>
+                )}
+                {renderProfileColumn(profile, metrics[index])}
               </div>
-              <div>
-                <MetricsGrid metrics={metricsData} />
-              </div>
-            </div>
-
-            {/* Middle row: Charts */}
-            <div className="grid-2">
-              <LanguageChart data={metricsData.chartData} />
-              <ActivityChart active={metricsData.activeRepos} inactive={metricsData.inactiveRepos} />
-            </div>
-
-            {/* Bottom row: Top Repos */}
-            <TopRepos repos={metricsData.topRepos} />
-            
+            ))}
           </div>
         )}
       </main>
